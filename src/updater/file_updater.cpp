@@ -189,7 +189,7 @@ namespace updater
 
 		console::info("Writing file to \"%s\"", out_file.string().c_str());
 
-		if (!utils::io::write_file(out_file.string(), *data, false))
+		if (!utils::io::write_file(out_file.string(), data.value(), false))
 		{
 			console::error("Error while writing file \"%s\"", out_file.string().c_str());
 			return false;
