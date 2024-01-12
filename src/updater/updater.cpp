@@ -19,7 +19,7 @@ namespace updater
 		const auto iw4_install = utils::properties::load("iw4-install");
 		if (!iw4_install)
 		{
-			console::error("Failed to load properties file");
+			console::error("Failed to load the properties file");
 			return false;
 		}
 
