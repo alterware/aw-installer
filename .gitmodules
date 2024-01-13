@@ -1,0 +1,13 @@
+[submodule "deps/GSL"]
+	path = deps/GSL
+	url = https://github.com/microsoft/GSL.git
+[submodule "deps/curl"]
+	path = deps/curl
+	url = https://github.com/curl/curl.git
+	branch = curl-8_5_0
+[submodule "deps/rapidjson"]
+	path = deps/rapidjson
+	url = https://github.com/Tencent/rapidjson.git
+[submodule "deps/zlib"]
+	path = deps/zlib
+	url = https://github.com/madler/zlib.git
