@@ -123,6 +123,8 @@ namespace utils::compression
 	{
 		namespace
 		{
+			constexpr std::size_t READ_BUFFER_SIZE = 65336;
+
 			bool add_file(zipFile& zip_file, const std::string& filename, const std::string& data)
 			{
 				const auto zip_64 = data.size() > 0xffffffff ? 1 : 0;
@@ -175,6 +177,7 @@ namespace utils::compression
 		}
 
 		// I apologize for writing such a huge function
+		// I'm Using make_preferred() so / are converted to \\ on Windows but not on POSIX
 		void archive::decompress(const std::string& filename, const std::filesystem::path& out_dir)
 		{
 			unzFile file = unzOpen(filename.c_str());
@@ -190,13 +193,12 @@ namespace utils::compression
 				throw std::runtime_error(string::va("unzGetGlobalInfo failed on %s", filename.c_str()));
 			}
 
-			constexpr std::size_t READ_BUFFER_SIZE = 65336;
 			const auto read_buffer_large = std::make_unique<char[]>(READ_BUFFER_SIZE);
 			// No need to memset this to 0
 			auto* read_buffer = read_buffer_large.get();
 
 			// Loop to extract all the files
-			for (uLong i = 0; i < global_info.number_entry; ++i)
+			for (std::size_t i = 0; i < global_info.number_entry; ++i)
 			{
 				// Get info about the current file.
 				unz_file_info file_info;
@@ -210,15 +212,17 @@ namespace utils::compression
 
 				// Check if this entry is a directory or a file.
 				std::string out_file = filename_buffer;
-				// Fix for UNIX Systems
+#ifndef _WIN32
+				// Fix for UNIX Systems. Some programs like unzip treat this as a warning
 				std::replace(out_file.begin(), out_file.end(), '\\', '/');
+#endif
 
 				const auto filename_length = out_file.size();
-				if (out_file[filename_length - 1] == '/') // ZIP is not directory-separator-agnostic
+				if (out_file[filename_length - 1] == '/' || out_file[filename_length - 1] == '\\') // ZIP is not directory-separator-agnostic
 				{
 					// Entry is a directory. Create it.
-					const auto dir = out_dir / out_file;
-					io::create_directory(dir);
+					auto dir = out_dir / out_file;
+					io::create_directory(dir.make_preferred());
 				}
 				else
 				{
@@ -229,18 +233,20 @@ namespace utils::compression
 						throw std::runtime_error(string::va("Failed to read file \"%s\" from \"%s\"", out_file.c_str(), filename.c_str()));
 					}
 					
-					const auto path = out_dir / out_file;
+					auto path = out_dir / out_file;
 					// Must create any directories before opening a stream
-					io::create_directory(path.parent_path());
+					if (auto parent_path = path.parent_path(); !parent_path.empty())
+					{
+						io::create_directory(parent_path.make_preferred());
+					}
 
-					// Open a stream to write out the data.
-					std::ofstream out(path.string(), std::ios::binary | std::ios::trunc);
+					std::ofstream out(path.make_preferred().string(), std::ios::binary | std::ios::trunc);
 					if (!out.is_open())
 					{
 						throw std::runtime_error("Failed to open stream");
 					}
 
-					auto read_bytes = UNZ_OK;
+					auto read_bytes = 0;
 					while (true)
 					{
 						read_bytes = unzReadCurrentFile(file, read_buffer, READ_BUFFER_SIZE);

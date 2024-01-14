@@ -155,7 +155,7 @@ jobs:
           make config=${{matrix.configuration}}_${{matrix.arch}} -j$(sysctl -n hw.logicalcpu)
 
       - name: Upload ${{matrix.arch}} ${{matrix.configuration}} binaries
-        uses: actions/upload-artifact@v3.1.3
+        uses: actions/upload-artifact@main
         with:
           name: macos-${{matrix.arch}}-${{matrix.configuration}}
           path: |
