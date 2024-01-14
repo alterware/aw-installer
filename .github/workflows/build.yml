@@ -187,3 +187,6 @@ jobs:
 
       - name: Upload release binary
         run: rsync -avz aw-installer ${{ secrets.ALTERWARE_MASTER_SSH_USER }}@${{ secrets.ALTERWARE_MASTER_SSH_ADDRESS }}:${{ env.ALTERWARE_INSTALLER_PATH }}/
+
+      - name: Publish changes
+        run: ssh ${{ secrets.ALTERWARE_MASTER_SSH_USER }}@${{ secrets.ALTERWARE_MASTER_SSH_ADDRESS }} ${{ secrets.ALTERWARE_SSH_INSTALLER_PUBLISH_COMMAND }}
