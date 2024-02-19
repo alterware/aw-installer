@@ -95,13 +95,13 @@ end
 
 flags {"NoIncrementalLink", "NoMinimalRebuild", "MultiProcessorCompile", "No64BitChecks"}
 
-filter "configurations:Release"
+filter "configurations:release"
 	optimize "Size"
 	defines "NDEBUG"
 	flags "FatalCompileWarnings"
 filter {}
 
-filter "configurations:Debug"
+filter "configurations:debug"
 	optimize "Debug"
 	defines {"DEBUG", "_DEBUG"}
 filter {}
