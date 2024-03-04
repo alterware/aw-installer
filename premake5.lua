@@ -44,7 +44,7 @@ cppdialect "C++20"
 if os.istarget("darwin") then
 	platforms {"x64", "arm64"}
 else
-	platforms {"x86", "x64"}
+	platforms {"x86", "x64", "arm64"}
 end
 
 filter "platforms:x86"
@@ -84,10 +84,6 @@ filter { "system:macosx", "platforms:arm64" }
 	buildoptions "-arch arm64"
 	linkoptions "-arch arm64"
 filter {}
-
-if _OPTIONS["dev-build"] then
-	defines {"DEV_BUILD"}
-end
 
 if os.getenv("CI") then
 	defines "CI"
