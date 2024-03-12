@@ -16,9 +16,8 @@ Requirements for Unix systems:
 - Dependencies: Ensure the LLVM C++ Standard library is installed
 - Alternative compilers: If you opt for a different compiler such as GCC, use the [Mold][mold-link] linker
 - Customization: Modifications to the Premake5.lua script may be required
-- Platform support: Details regarding supported platforms are available in [build.yml][build-link]
+- Platform support: Details regarding supported platforms are available in [build.yml](.github/workflows/build.yml)
 
 [premake5-link]:          https://premake.github.io
 [git-link]:               https://git-scm.com
 [mold-link]:              https://github.com/rui314/mold
-[build-link]:             https://github.com/alterware/master-server/blob/master/.github/workflows/build.yml
