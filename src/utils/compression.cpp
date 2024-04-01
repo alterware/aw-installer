@@ -46,10 +46,10 @@ namespace utils::compression
 
 				z_stream& get()
 				{
-					return stream_; //
+					return stream_;
 				}
 
-				bool is_valid() const
+				[[nodiscard]] bool is_valid() const
 				{
 					return valid_;
 				}
@@ -177,7 +177,7 @@ namespace utils::compression
 		}
 
 		// I apologize for writing such a huge function
-		// I'm Using make_preferred() so / are converted to \\ on Windows but not on POSIX
+		// I'm using make_preferred() so / are converted to \\ on Windows but not on POSIX
 		void archive::decompress(const std::string& filename, const std::filesystem::path& out_dir)
 		{
 			unzFile file = unzOpen(filename.c_str());
@@ -229,7 +229,7 @@ namespace utils::compression
 					// Entry is a file. Extract it.
 					if (unzOpenCurrentFile(file) != UNZ_OK)
 					{
-						// Could not read file from the ZIP
+						unzClose(file);
 						throw std::runtime_error(string::va("Failed to read file \"%s\" from \"%s\"", out_file.c_str(), filename.c_str()));
 					}
 					
@@ -243,6 +243,8 @@ namespace utils::compression
 					std::ofstream out(path.make_preferred().string(), std::ios::binary | std::ios::trunc);
 					if (!out.is_open())
 					{
+						unzCloseCurrentFile(file);
+						unzClose(file);
 						throw std::runtime_error("Failed to open stream");
 					}
 
@@ -252,6 +254,8 @@ namespace utils::compression
 						read_bytes = unzReadCurrentFile(file, read_buffer, READ_BUFFER_SIZE);
 						if (read_bytes < 0)
 						{
+							unzCloseCurrentFile(file);
+							unzClose(file);
 							throw std::runtime_error(string::va("Error while reading \"%s\" from the archive", out_file.c_str()));
 						}
 
@@ -273,6 +277,7 @@ namespace utils::compression
 				// Go the the next entry listed in the ZIP file.
 				if ((i + 1) < global_info.number_entry)
 				{
+					// According to the AI overlords I do not need to close the file with unzCloseCurrentFile here
 					if (unzGoToNextFile(file) != UNZ_OK)
 					{
 						break;
