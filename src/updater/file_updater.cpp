@@ -139,7 +139,7 @@ namespace updater
 		update_state.requires_update = local_version != raw_files_tag.value();
 		update_state.latest_tag = raw_files_tag.value();
 
-		console::info("Got release tag \"%s\". Requires updating: %s", raw_files_tag.value().c_str(), update_state.requires_update ? "Yes" : "No");
+		console::info("Got release tag \"%s\". Requires updating: %s", raw_files_tag->c_str(), update_state.requires_update ? "Yes" : "No");
 		return update_state.requires_update;
 	}
 
@@ -171,15 +171,15 @@ namespace updater
 	{
 		console::info("Downloading %s", url.c_str());
 		const auto data = utils::http::get_data(url, {});
-		if (!data)
+		if (!data.has_value())
 		{
 			console::error("Failed to download %s", url.c_str());
 			return false;
 		}
 
-		if (data.value().empty())
+		if (data->empty())
 		{
-			console::error("The data buffer returned by Curl is empty");
+			console::error("The data buffer returned by cURL is empty");
 			return false;
 		}
 
