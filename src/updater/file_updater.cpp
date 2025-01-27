@@ -30,14 +30,14 @@ namespace updater
 				return {};
 			}
 
-			if (release_json.HasMember("tag_name") && release_json["tag_name"].IsString())
+			if (!release_json.HasMember("tag_name") || !release_json["tag_name"].IsString())
 			{
-				const auto* tag_name = release_json["tag_name"].GetString();
-				return tag_name;
+				console::error("Remote JSON response from \"%s\" does not contain the data we expected", release_url.c_str());
+				return {};
 			}
 
-			console::error("Remote JSON response from \"%s\" does not contain the data we expected", release_url.c_str());
-			return {};
+			const auto* tag_name = release_json["tag_name"].GetString();
+			return tag_name;
 		}
 	}
 
@@ -145,7 +145,7 @@ namespace updater
 
 	void file_updater::create_version_file(const std::string& revision_version) const
 	{
-		console::info("Creating version file \"%s\". Revision is \"%s\"", this->version_file_.c_str(), revision_version.c_str());
+		console::info("Creating version file \"%s\". Revision is \"%s\"", this->version_file_.string().c_str(), revision_version.c_str());
 
 		rapidjson::Document doc{};
 		doc.SetObject();
@@ -183,8 +183,14 @@ namespace updater
 			return false;
 		}
 
-		// Download the files in the working directory, move them later.
-		const auto out_file = std::filesystem::current_path() / this->out_name_;
+		// Download the files in the temp directory, move them later.
+		std::error_code ec;
+		const auto out_file = std::filesystem::temp_directory_path(ec) / this->out_name_;
+		if (ec)
+		{
+			console::error("Got error \"%s\" while trying to get the temp dir", ec.message().c_str());
+			return false;
+		}
 
 		console::info("Writing file to \"%s\"", out_file.string().c_str());
 
@@ -201,31 +207,47 @@ namespace updater
 	// Not a fan of using exceptions here. Once C++23 is more widespread I'd like to use <expected>
 	bool file_updater::deploy_files() const
 	{
-		const auto out_dir = std::filesystem::current_path() / ".out";
-
-		assert(utils::io::file_exists(this->out_name_.string()));
-
-		// Always try to cleanup
-		const auto _ = gsl::finally([this, &out_dir]() -> void
+		std::error_code ec;
+		const auto out_dir = std::filesystem::temp_directory_path(ec) / ".out";
+		if (ec)
 		{
-			utils::io::remove_file(this->out_name_.string());
+			console::error("Got error \"%s\" while trying to get the temp dir", ec.message().c_str());
+			return false;
+		}
 
-			std::error_code ec;
+		const auto out_file = std::filesystem::temp_directory_path(ec) / this->out_name_;
+		if (ec)
+		{
+			console::error("Got error \"%s\" while trying to get the temp dir", ec.message().c_str());
+			return false;
+		}
+
+		assert(utils::io::file_exists(out_file.string()));
+
+		// Always try to clean-up
+		const auto _ = gsl::finally([&out_dir, &out_file, &ec]() -> void
+		{
+			utils::io::remove_file(out_file.string());
+
 			std::filesystem::remove_all(out_dir, ec);
+			if (ec)
+			{
+				console::error("Got error \"%s\" while trying to clean-up the temp dir", ec.message().c_str());
+			}
 		});
 
 		try
 		{
 			utils::io::create_directory(out_dir);
-			utils::compression::zip::archive::decompress(this->out_name_.string(), out_dir);
+			utils::compression::zip::archive::decompress(out_file.string(), out_dir);
 		}
 		catch (const std::exception& ex)
 		{
-			console::error("Get error \"%s\" while decompressing \"%s\"", ex.what(), this->out_name_.string().c_str());
+			console::error("Got error \"%s\" while decompressing \"%s\"", ex.what(), out_file.string().c_str());
 			return false;
 		}
 
-		console::info("\"%s\" was decompressed. Removing files that must be skipped", this->out_name_.string().c_str());
+		console::info("\"%s\" was decompressed. Removing files that must be skipped", out_file.string().c_str());
 		this->skip_files(out_dir);
 
 		console::info("Deploying files to \"%s\"", this->base_.string().c_str());
