@@ -18,9 +18,9 @@ namespace
 			else
 			{
 				console::info("AlterWare Installer\n"
-					"Usage: %s OPTIONS\n"
-					"  -update-iw4x\n",
-					prog.data()
+				              "Usage: %s OPTIONS\n"
+				              "  -update-iw4x",
+				              prog.c_str()
 				);
 
 				return EXIT_FAILURE;
