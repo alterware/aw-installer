@@ -10,7 +10,7 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  PREMAKE_VERSION: "5.0.0-beta2"
+  PREMAKE_VERSION: "5.0.0-beta6"
 
 concurrency:
   group: ${{ github.ref }}
@@ -24,7 +24,6 @@ jobs:
       fail-fast: false
       matrix:
         configuration:
-          - debug
           - release
         arch:
           - x64
@@ -42,13 +41,13 @@ jobs:
           fetch-depth: 0
           lfs: false
 
-      - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@main
-
       - name: Install Premake5
         uses: diamante0018/setup-premake@master
         with:
           version: ${{ env.PREMAKE_VERSION }}
+
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@main
 
       - name: Generate project files
         run: premake5 vs2022
@@ -57,7 +56,7 @@ jobs:
         uses: ammaraskar/msvc-problem-matcher@master
 
       - name: Build ${{matrix.arch}} ${{matrix.configuration}} binaries
-        run: msbuild /m /v:minimal /p:Configuration=${{matrix.configuration}} /p:Platform=${{matrix.platform}} build/aw-installer.sln
+        run: msbuild /m /p:Configuration=${{matrix.configuration}} /p:Platform=${{matrix.platform}} build/aw-installer.sln
 
       - name: Upload ${{matrix.arch}} ${{matrix.configuration}} binaries
         uses: actions/upload-artifact@main
@@ -67,17 +66,9 @@ jobs:
             build/bin/${{matrix.arch}}/${{matrix.configuration}}/aw-installer.exe
             build/bin/${{matrix.arch}}/${{matrix.configuration}}/aw-installer.pdb
 
-  build-linux:
-    name: Build Linux
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        configuration:
-          - debug
-          - release
-        arch:
-          - x64
+  prebuild-linux:
+    name: Prebuild Linux
+    runs-on: ubuntu-latest
     steps:
       - name: Check out files
         uses: actions/checkout@main
@@ -86,30 +77,119 @@ jobs:
           fetch-depth: 0
           lfs: false
 
-      - name: Install dependencies (x64)
-        if: matrix.arch == 'x64'
-        run: |
-          sudo apt-get update
-          sudo apt-get install libcurl4-gnutls-dev -y
-
       - name: Install Premake5
         uses: diamante0018/setup-premake@master
         with:
           version: ${{ env.PREMAKE_VERSION }}
 
       - name: Generate project files
-        run: premake5 --cc=clang gmake2
+        run: premake5 --cc=clang gmake
+
+      - name: Upload project files
+        uses: actions/upload-artifact@main
+        with:
+          name: linux-project-files
+          path: |
+            build/
+
+  build-linux-amd64:
+    name: Build Linux
+    runs-on: ubuntu-22.04
+    needs: prebuild-linux
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration:
+          - release
+        arch:
+          - amd64
+    steps:
+      - name: Check out files
+        uses: actions/checkout@main
+        with:
+          submodules: true
+          fetch-depth: 0
+          lfs: false
+
+      - name: Create the build directory
+        run: mkdir -p build
+
+      - name: Download project files
+        uses: actions/download-artifact@main
+        with:
+          name: linux-project-files
+          path: build/
+
+      - name: Install dependencies (amd64)
+        if: matrix.arch == 'amd64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-gnutls-dev
 
       - name: Set up problem matching
         uses: ammaraskar/gcc-problem-matcher@master
 
       - name: Build ${{matrix.arch}} ${{matrix.configuration}} binaries
+        working-directory: ${{ github.workspace }}
         run: |
           pushd build
           make config=${{matrix.configuration}}_${{matrix.arch}} -j$(nproc)
         env:
           CC: clang
           CXX: clang++
+
+      - name: Upload ${{matrix.arch}} ${{matrix.configuration}} binaries
+        uses: actions/upload-artifact@main
+        with:
+          name: linux-${{matrix.arch}}-${{matrix.configuration}}
+          path: |
+            build/bin/${{matrix.arch}}/${{matrix.configuration}}/aw-installer
+
+  build-linux-arm64:
+    name: Build Linux
+    runs-on: ${{ matrix.os }}
+    needs: prebuild-linux
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration:
+          - release
+        arch:
+          - arm64
+        include:
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    steps:
+      - name: Check out files
+        uses: actions/checkout@main
+        with:
+          submodules: true
+          fetch-depth: 0
+          lfs: false
+
+      - name: Create the build directory
+        run: mkdir -p build
+
+      - name: Download project files
+        uses: actions/download-artifact@main
+        with:
+          name: linux-project-files
+          path: build/
+
+      - name: Install dependencies (arm64)
+        if: matrix.arch == 'arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-gnutls-dev
+
+      - name: Build ${{matrix.arch}} ${{matrix.configuration}} binaries
+        working-directory: ${{ github.workspace }}
+        run: |
+          pushd build
+          make config=${{matrix.configuration}}_${{matrix.arch}} -j$(nproc)
+        env:
+         CC: clang
+         CXX: clang++
 
       - name: Upload ${{matrix.arch}} ${{matrix.configuration}} binaries
         uses: actions/upload-artifact@main
@@ -125,9 +205,9 @@ jobs:
       fail-fast: false
       matrix:
         configuration:
-          - debug
           - release
         arch:
+          - amd64
           - arm64
     steps:
       - name: Check out files
@@ -143,7 +223,7 @@ jobs:
           version: ${{ env.PREMAKE_VERSION }}
 
       - name: Generate project files
-        run: premake5 gmake2
+        run: premake5 gmake
 
       - name: Set up problem matching
         uses: ammaraskar/gcc-problem-matcher@master
@@ -162,7 +242,7 @@ jobs:
 
   deploy:
     name: Deploy artifacts
-    needs: [build-win, build-linux, build-macos]
+    needs: [build-win, build-linux-amd64, build-linux-arm64, build-macos]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
@@ -173,7 +253,7 @@ jobs:
       - name: Download Release binaries
         uses: actions/download-artifact@main
         with:
-          name: linux-x64-release
+          name: linux-amd64-release
 
       - name: Install SSH key
         uses: shimataro/ssh-key-action@v2.7.0
