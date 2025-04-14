@@ -41,9 +41,11 @@ configurations {"debug", "release"}
 language "C++"
 cppdialect "C++20"
 
-if os.istarget("darwin") then
-	platforms {"x64", "arm64"}
-else
+if os.istarget("linux") then
+	platforms {"x86", "amd64", "arm64"}
+elseif os.istarget("macosx") then
+	platforms {"amd64", "arm64"}
+else 
 	platforms {"x86", "x64", "arm64"}
 end
 
@@ -52,6 +54,10 @@ architecture "x86"
 filter {}
 
 filter "platforms:x64"
+architecture "x86_64"
+filter {}
+
+filter "platforms:amd64"
 architecture "x86_64"
 filter {}
 
@@ -71,14 +77,22 @@ filter { "system:linux", "system:macosx" }
 filter {}
 
 if os.istarget("linux") then
-	filter { "toolset:clang*" }
-		buildoptions "-stdlib=libc++"
-		linkoptions "-stdlib=libc++"
+	-- this supports cross-compilation for arm64
+	filter { "toolset:clang*", "platforms:arm64" }
+		buildoptions "--target=arm64-linux-gnu"
+		linkoptions "--target=arm64-linux-gnu"
+	filter {}
 
+	filter { "toolset:clang*" }
 		-- always try to use lld. LD or Gold will not work
 		linkoptions "-fuse-ld=lld"
 	filter {}
 end
+
+filter { "system:macosx", "platforms:amd64" }
+	buildoptions "-arch x86_64"
+	linkoptions "-arch x86_64"
+filter {}
 
 filter { "system:macosx", "platforms:arm64" }
 	buildoptions "-arch arm64"
@@ -94,7 +108,7 @@ flags {"NoIncrementalLink", "NoMinimalRebuild", "MultiProcessorCompile", "No64Bi
 filter "configurations:release"
 	optimize "Size"
 	defines "NDEBUG"
-	flags "FatalCompileWarnings"
+	fatalwarnings {"All"}
 filter {}
 
 filter "configurations:debug"
@@ -105,6 +119,7 @@ filter {}
 project "aw-installer"
 kind "ConsoleApp"
 language "C++"
+cppdialect "C++20"
 
 pchheader "std_include.hpp"
 pchsource "src/std_include.cpp"
@@ -132,7 +147,6 @@ filter { "system:windows", "toolset:msc*" }
 filter {}
 
 dependencies.imports()
-
 
 group "Dependencies"
 dependencies.projects()
