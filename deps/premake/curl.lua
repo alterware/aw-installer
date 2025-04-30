@@ -5,7 +5,7 @@ curl = {
 function curl.import()
 	links { "curl" }
 	
-	filter "toolset:msc*"
+	filter "system:windows"
 		links { "Crypt32.lib" }
 	filter {}
 	
@@ -13,7 +13,7 @@ function curl.import()
 end
 
 function curl.includes()
-filter "toolset:msc*"
+filter "system:windows"
 	includedirs {
 		path.join(curl.source, "include"),
 	}
@@ -49,21 +49,12 @@ function curl.project()
 			"BUILDING_LIBCURL",
 		}
 		
-		filter "toolset:msc*"
+		filter "system:windows"
 
 			defines {
 				"USE_SCHANNEL",
 				"USE_WINDOWS_SSPI",
 				"USE_THREADS_WIN32",
-			}
-
-		filter {}
-		
-		filter "toolset:not msc*"
-		
-			defines {
-				"USE_GNUTLS",
-				"USE_THREADS_POSIX",
 			}
 
 		filter {}

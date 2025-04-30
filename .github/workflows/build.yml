@@ -25,10 +25,16 @@ jobs:
       matrix:
         configuration:
           - release
+        compiler:
+          - msvc
+          - clang
         arch:
+          - x86
           - x64
           - arm64
         include:
+          - arch: x86
+            platform: Win32
           - arch: x64
             platform: x64
           - arch: arm64
@@ -49,19 +55,24 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@main
 
-      - name: Generate project files
+      - name: Generate project files (clang)
+        if: matrix.compiler == 'clang'
+        run: premake5 --cc=${{matrix.compiler}} vs2022
+
+      - name: Generate project files (msvc)
+        if: matrix.compiler == 'msvc'
         run: premake5 vs2022
 
       - name: Set up problem matching
         uses: ammaraskar/msvc-problem-matcher@master
 
-      - name: Build ${{matrix.arch}} ${{matrix.configuration}} binaries
+      - name: Build ${{matrix.arch}} ${{matrix.configuration}} ${{matrix.compiler}} binaries
         run: msbuild /m /p:Configuration=${{matrix.configuration}} /p:Platform=${{matrix.platform}} build/aw-installer.sln
 
-      - name: Upload ${{matrix.arch}} ${{matrix.configuration}} binaries
+      - name: Upload ${{matrix.arch}} ${{matrix.configuration}} ${{matrix.compiler}} binaries
         uses: actions/upload-artifact@main
         with:
-          name: windows-${{matrix.arch}}-${{matrix.configuration}}
+          name: windows-${{matrix.arch}}-${{matrix.configuration}}-${{matrix.compiler}}
           path: |
             build/bin/${{matrix.arch}}/${{matrix.configuration}}/aw-installer.exe
             build/bin/${{matrix.arch}}/${{matrix.configuration}}/aw-installer.pdb
